@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "data-annalist"
 description = "Audit trail generator for data processing scripts."
-version = "0.4.3"
+version = "0.4.4"
 authors = [
     { name = "Nic Mostert", email = "nicolas.mostert@horizons.govt.nz" },
 ]
-requires-python = ">=3.11.*"
+requires-python = ">=3.11"
 dependencies = ["pytest (>=9.0.2,<10.0.0)", "pytest-cov (>=7.0.0,<8.0.0)"]
 classifiers=[
     "Development Status :: 2 - Pre-Alpha",
@@ -89,7 +89,7 @@ convention = "numpy"
 "docs/*" = ["I001"]
 
 [tool.bumpversion]
-current_version = "0.4.3"
+current_version = "0.4.4"
 commit = true
 tag = true
 tag_name = "{new_version}"

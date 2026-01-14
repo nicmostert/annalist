@@ -70,3 +70,8 @@ History
 
 * Considered being Ruff B905 compliant, but it turns out we're zipping over some unequal lists. Shelving this for later.
 * Switched logfile mode from "append" to "write", which overwrites the logfile every time.
+
+0.4.4 (2025-01-14)
+------------------
+
+* Added support for Python 3.12 onwards
