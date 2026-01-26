@@ -294,8 +294,7 @@ class ClassLogger(Wrapper):
         _ = kwargs
         logger.debug("PROPERTY seen, let's get it.")
         logger.debug(
-            f"You decorated a property called {self.func.fget} "
-            f"on instance {instance}, "
+            f"You decorated a property called {self.func.fget} on instance {instance}, "
         )
         value = self.func.fget(instance)
         logger.debug(f"PROPERTY IS {value}")
@@ -308,8 +307,7 @@ class ClassLogger(Wrapper):
         """
         logger.debug("PROPERTY seen, let's SET it.")
         logger.debug(
-            f"You decorated a property called {self.func.fset} "
-            f"on instance {instance}, "
+            f"You decorated a property called {self.func.fset} on instance {instance}, "
         )
         logger.debug("Inspecting Instance:")
         fill_data = self._inspect_instance(
@@ -387,7 +385,7 @@ class ClassLogger(Wrapper):
                     fill_data[attr] = arg_values[attr]
                 elif hasattr(instance, attr):
                     logger.info(
-                        "But no arg supplied." f"Found {attr} in class attributes."
+                        f"But no arg supplied.Found {attr} in class attributes."
                     )
                     fill_data[attr] = getattr(instance, attr)
                 else:
