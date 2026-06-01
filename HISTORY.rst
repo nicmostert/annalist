@@ -75,3 +75,9 @@ History
 ------------------
 
 * Added support for Python 3.12 onwards
+
+0.4.5 (2026-06-02)
+------------------
+
+* Various package upgrades for compatibility
+* Added support for Python 3.12 onwards
