@@ -130,7 +130,7 @@ class Craig:
 
 if __name__ == "__main__":
     format_str = (
-        "%(levelname)s | %(function_name)s | %(message)s " "| %(injured)s | %(height)s"
+        "%(levelname)s | %(function_name)s | %(message)s | %(injured)s | %(height)s"
     )
     ann.configure(
         analyst_name="Nic baby",
@@ -156,7 +156,6 @@ if __name__ == "__main__":
     # print(cb.height)
     #
     print(cb.surname)
-    #
     cb.surname = "Coulomb"
     # cb.shoesize = 11
     # print(cb.is_hurt_and_bearded())

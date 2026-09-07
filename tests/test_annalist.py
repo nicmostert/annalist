@@ -346,8 +346,7 @@ def test_class_attribute_logging(capsys):
     ann = Annalist()
 
     format_str = (
-        "%(analyst_name)s | %(function_name)s | %(height)s "
-        "| %(injured)s | %(bearded)s"
+        "%(analyst_name)s | %(function_name)s | %(height)s | %(injured)s | %(bearded)s"
     )
 
     ann.configure(
