@@ -4,7 +4,9 @@
 
 import inspect
 import json
+from pathlib import Path
 
+import annalist.annalist as annalist_module
 from annalist.annalist import Annalist
 from annalist.decorators import function_logger
 from tests.example_class import Craig, return_greeting, which_craig_is_that
@@ -64,7 +66,7 @@ def test_all_fields(capsys):
         '"ret_val_type": "<class \'str\'>",'
         '"ret_annotation": "<class \'str\'>",'
         "\"params\": \"{'name': {'default': 'loneliness'; "
-        "'annotation': <class 'str'>; 'kind': 'keyword'; 'value': 'Craig'}}\","
+        "'annotation': <class 'str'>; 'kind': 'positional'; 'value': 'Craig'}}\","
         '"asctime": "unknown",'
         '"filename": "annalist.py",'
         '"funcName": "log_call",'
@@ -75,7 +77,9 @@ def test_all_fields(capsys):
         '"module": "annalist",'
         '"msecs": "unknown",'
         '"loggername": "auditor",'
-        '"pathname": "/home/nic/repos/annalist/annalist/annalist.py",'
+        # Depends on where the package is installed, so it is checked
+        # against the module's real location after the loop, not here.
+        '"pathname": "unknown",'
         '"process": "unknown",'
         '"processName": "MainProcess",'
         '"relativeCreated": "unknown",'
@@ -97,6 +101,11 @@ def test_all_fields(capsys):
     for key, val in captured_fields.items():
         if field_values[key] != "unknown":
             assert val == field_values[key], f"Failing on {key}"
+
+    # The log record names the file the call was logged from. Compare it with
+    # where the annalist module actually is, whoever's machine this runs on.
+    logged_from = Path(captured_fields["pathname"]).resolve()
+    assert logged_from == Path(annalist_module.__file__).resolve()
 
 
 def test_init_logging(capsys):

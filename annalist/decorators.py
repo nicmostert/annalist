@@ -3,6 +3,7 @@
 import functools
 import inspect
 import logging
+import types
 from functools import partial
 
 from annalist.annalist import Annalist
@@ -87,7 +88,9 @@ def function_logger(
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
-            ann.log_call(message, level, func, result, extra_info, *args, **kwargs)
+            ann.log_call(
+                message, level, func, result, extra_info, args=args, kwargs=kwargs
+            )
             return result
 
         return wrapper
@@ -109,6 +112,11 @@ class Wrapper:
         """
         _ = message
         super().__init__()
+        # Like functools.wraps: give this object the wrapped function's
+        # __name__, __qualname__, __module__, __doc__ and __wrapped__, so
+        # that tools which look at the class dictionary (Sphinx, pydoc,
+        # linters, language servers) describe the method and not the wrapper.
+        functools.update_wrapper(self, func)
         self.func = func
 
     def __call__(self, *args, **kwargs):
@@ -116,10 +124,20 @@ class Wrapper:
         logger.debug("CALLING FUNCTION.")
         return self.func(*args, **kwargs)
 
-    def __call_method__(self, instance, *args, **kwargs):
-        """Call from LoggingDecorator.__call_method__."""
+    def __call_method__(self, instance, owner, /, *args, **kwargs):
+        """Call from LoggingDecorator.__call_method__.
+
+        ``instance`` is ``None`` when the method was reached through the
+        class (``Craig.army_of_craigs(...)``). ``owner`` is the class either
+        way. Both are needed to bind the function: a classmethod bound to
+        ``None`` has no class to bind to.
+
+        ``instance`` and ``owner`` are positional-only (the ``/``) on
+        purpose, so they can never collide with a keyword argument of the
+        decorated method that happens to be called ``owner`` or ``instance``.
+        """
         logger.debug("+++++++++++++++++++++++++++++THIS IS THE SUPER CALL_METHOD")
-        return self.func.__get__(instance)(*args, **kwargs)
+        return self.func.__get__(instance, owner)(*args, **kwargs)
 
     def __get_property__(self, instance, *args, **kwargs):
         """Made to be overridden."""
@@ -133,18 +151,77 @@ class Wrapper:
         """Made to be overridden."""
         return self.func.__call_property__(instance)(*args, **kwargs)
 
-    def __get__(self, instance, args):
-        """Triggers when instance.method() is called."""
-        _ = args
+    def __get__(self, instance, owner=None):
+        """Triggers when instance.method() or Class.method() is looked up.
+
+        Python passes the instance (``None`` for access through the class)
+        and the owner class.
+
+        What comes back is a real function or bound method that carries the
+        wrapped function's identity (see ``_bind``), so inspection tools see
+        the method that was written and not this wrapper.
+        """
         logger.debug(f"GETTER CALLED on {self.func}")
         logger.debug(f"is it a property? {isinstance(self.func, property)}")
         if isinstance(self.func, property):
-            call_ret = self.__get_property__(instance)
-            return call_ret
-        else:
-            call_ret = partial(self.__call_method__, instance)
-            functools.update_wrapper(call_ret, self.func)
-            return call_ret
+            if instance is None:
+                # Like a plain property: reached through the class, you get
+                # the property itself, not the result of calling it.
+                return self.func
+            return self.__get_property__(instance)
+        if owner is None:
+            owner = type(instance)
+        return self._bind(instance, owner)
+
+    def _bind(self, instance, owner):
+        """Build what Python would have returned if there were no wrapper.
+
+        * staticmethod: a plain function.
+        * classmethod: a method bound to the class (``__self__`` is the class,
+          even when reached through an instance).
+        * ordinary method through an instance: a method bound to the
+          instance. Through the class: a plain function that takes the
+          instance as its first argument.
+
+        Each one is given the wrapped function's name, docstring, module and
+        signature with ``functools.wraps``, and calls the logging hook.
+        Because they are real functions and methods, ``inspect.signature``
+        leaves out ``self``/``cls`` where Python does, and ``inspect.ismethod``
+        and ``inspect.isfunction`` give the same answers as for an undecorated
+        method.
+        """
+        hook = self.__call_method__
+        underlying = getattr(self.func, "__func__", self.func)
+
+        if isinstance(self.func, staticmethod):
+
+            @functools.wraps(underlying)
+            def static_call(*args, **kwargs):
+                return hook(instance, owner, *args, **kwargs)
+
+            return static_call
+
+        if isinstance(self.func, classmethod):
+
+            @functools.wraps(underlying)
+            def class_call(_cls, *args, **kwargs):
+                return hook(instance, owner, *args, **kwargs)
+
+            return types.MethodType(class_call, owner)
+
+        if instance is None:
+
+            @functools.wraps(underlying)
+            def unbound_call(*args, **kwargs):
+                return hook(None, owner, *args, **kwargs)
+
+            return unbound_call
+
+        @functools.wraps(underlying)
+        def bound_call(_self, *args, **kwargs):
+            return hook(_self, owner, *args, **kwargs)
+
+        return types.MethodType(bound_call, instance)
 
     def __set__(self, instance, anything):
         """Triggers when setter is called."""
@@ -241,7 +318,28 @@ class ClassLogger(Wrapper):
         logger.info(f"FUNCTION {self.func} RETURNS {ret_val_str}")
         return ret_val
 
-    def __call_method__(self, instance, *args, **kwargs):
+    def _logging_subject(self, instance, owner, args):
+        """Work out what to describe in the log, and with which arguments.
+
+        Returns ``(instance, owner_or_class, args)`` where the first item is
+        the instance to read attributes from (or ``None``), the second is the
+        class to name in the message, and the third is the arguments without
+        any ``self`` that arrived as a plain first argument.
+
+        * Reached through an instance: as given.
+        * ``Class.classmethod(...)`` or ``Class.staticmethod(...)``: there is
+          no instance, so the owner class is named.
+        * ``Class.method(instance, ...)``: the instance is the first argument,
+          so it is treated as the instance, and removed from the arguments,
+          which makes the log the same as for ``instance.method(...)``.
+        """
+        if instance is not None:
+            return instance, instance.__class__, args
+        if not isinstance(self.func, (classmethod, staticmethod)) and args:
+            return args[0], args[0].__class__, args[1:]
+        return None, owner, args
+
+    def __call_method__(self, instance, owner, /, *args, **kwargs):
         """Triggers when a method is called (through __get__).
 
         Logs, then sends to Wrapper.__call_method__.
@@ -252,15 +350,18 @@ class ClassLogger(Wrapper):
             f"with instance {instance}, "
             f"args {args}, and kwargs {kwargs}"
         )
-        ret_val = super().__call_method__(instance, *args, **kwargs)
-        logger.info(f"METHOD {self.func} called with args {args} and {kwargs}")
-        logger.info(f"METHOD {self.func} is on {instance}")
+        ret_val = super().__call_method__(instance, owner, *args, **kwargs)
+        log_instance, log_class, log_args = self._logging_subject(
+            instance, owner, args
+        )
+        logger.info(f"METHOD {self.func} called with args {log_args} and {kwargs}")
+        logger.info(f"METHOD {self.func} is on {log_instance or log_class}")
         logger.info(f"METHOD {self.func} RETURNS {ret_val}")
         ret_val_str = trunc_value_string(ret_val)
         message = (
             f"METHOD {self.func.__qualname__} called with "
-            + f"args {args} and kwargs {kwargs}. "
-            + f"It is on an instance of {instance.__class__.__name__}, "
+            + f"args {log_args} and kwargs {kwargs}. "
+            + f"It is on an instance of {log_class.__name__}, "
             + f"and returns the value {ret_val_str}."
         )
 
@@ -271,7 +372,13 @@ class ClassLogger(Wrapper):
 
         # I'm unwrapping here in case the func is a
         # classmethod (which is a wrapper).
-        fill_data = self._inspect_instance(ret_func, instance, args, kwargs)
+        # With no instance, class-level attributes are read from the class.
+        fill_data = self._inspect_instance(
+            ret_func,
+            log_class if log_instance is None else log_instance,
+            log_args,
+            kwargs,
+        )
 
         ann.log_call(
             message=message,
@@ -279,8 +386,9 @@ class ClassLogger(Wrapper):
             func=ret_func,
             ret_val=ret_val,
             extra_data=fill_data,
-            args=args,
+            args=log_args,
             kwargs=kwargs,
+            skip_first=not isinstance(self.func, staticmethod),
         )
         logger.debug("DONE LOGGING METHOD")
         return ret_val
@@ -333,8 +441,9 @@ class ClassLogger(Wrapper):
             func=self.func.fset,
             ret_val=None,
             extra_data=fill_data,
-            args=value,
+            args=(value,),
             kwargs=None,
+            skip_first=True,
         )
 
         logger.info(f"PROPERTY {self.func.fset} SET TO {value}")
@@ -350,7 +459,7 @@ class ClassLogger(Wrapper):
         argspec = inspect.getfullargspec(func)
         logger.debug(f"argspec: {argspec}")
 
-        if (len(argspec.args) > 0) and (argspec.args[0] == "self"):
+        if (len(argspec.args) > 0) and (argspec.args[0] in ("self", "cls")):
             func_args = argspec.args[1:]
         else:
             func_args = argspec.args

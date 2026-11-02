@@ -282,8 +282,32 @@ class Annalist(metaclass=Singleton):
         self.stream_handler.setFormatter(self.stream_formatter)
         self.logger.addHandler(self.stream_handler)
 
-    def log_call(self, message, level, func, ret_val, extra_data, *args, **kwargs):
-        """Log function call."""
+    def log_call(
+        self,
+        message,
+        level,
+        func,
+        ret_val,
+        extra_data,
+        args=(),
+        kwargs=None,
+        *,
+        skip_first=False,
+    ):
+        """Log function call.
+
+        Parameters
+        ----------
+        args, kwargs
+            The arguments the logged function was called with. They are
+            ordinary parameters, not ``*args``/``**kwargs``, so that a logged
+            function with a keyword called ``message`` or ``level`` cannot
+            collide with this method's own parameters.
+        skip_first
+            Set for methods. The first parameter of ``func`` (``self`` or
+            ``cls``) is then left out of the ``params`` field, because the
+            caller does not pass it in ``args``.
+        """
         if not self._configured:
             raise ValueError(
                 "Annalist not configured. Configure object after retrieval."
@@ -291,6 +315,10 @@ class Annalist(metaclass=Singleton):
 
         report = {}
         signature = inspect.signature(func)
+        if skip_first:
+            signature = signature.replace(
+                parameters=list(signature.parameters.values())[1:]
+            )
 
         report["function_name"] = func.__name__
         report["function_doc"] = clean_str(func.__doc__)
@@ -299,34 +327,7 @@ class Annalist(metaclass=Singleton):
         else:
             report["ret_annotation"] = signature.return_annotation
 
-        params = {}
-        all_args = list(args) + list(kwargs.values())
-        for i, ((name, param), arg) in enumerate(
-            zip(signature.parameters.items(), all_args)
-        ):
-            if param.default == inspect._empty:
-                default_val = None
-            else:
-                default_val = param.default
-
-            if param.annotation == inspect._empty:
-                annotation = None
-            else:
-                annotation = param.annotation
-
-            if i > len(args):
-                kind = "positional"
-                value = arg
-            else:
-                kind = "keyword"
-                value = arg
-            params[name] = {
-                "default": default_val,
-                "annotation": annotation,
-                "kind": kind,
-                "value": value,
-            }
-        report["params"] = clean_str(params)
+        report["params"] = clean_str(describe_params(signature, args, kwargs))
 
         report["analyst_name"] = clean_str(self.analyst_name)
         report["ret_val_type"] = type(ret_val)
@@ -346,6 +347,54 @@ class Annalist(metaclass=Singleton):
             clean_str(message),
             extra=report,
         )
+
+
+def describe_params(signature, args=(), kwargs=None):
+    """Describe the arguments a function was called with.
+
+    Returns ``{name: {"default", "annotation", "kind", "value"}}`` for every
+    argument that was actually supplied, in the order of the signature.
+    ``kind`` is ``"positional"`` if the argument was passed by position and
+    ``"keyword"`` if it was passed by name.
+
+    The arguments are matched to the signature by binding them, which is the
+    same thing Python does, so ``*args``, ``**kwargs``, keyword-only and
+    positional-only parameters are all matched correctly. Logging must never
+    break the call it is describing, so if the arguments cannot be bound the
+    result is empty.
+    """
+    kwargs = kwargs or {}
+    try:
+        bound = signature.bind_partial(*args, **kwargs)
+    except TypeError:
+        return {}
+
+    positional_capable = [
+        p.name
+        for p in signature.parameters.values()
+        if p.kind
+        in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    passed_by_position = set(positional_capable[: len(args)])
+
+    params = {}
+    for name, value in bound.arguments.items():
+        param = signature.parameters[name]
+        if param.kind is inspect.Parameter.VAR_POSITIONAL:
+            kind = "positional"
+        elif param.kind is inspect.Parameter.VAR_KEYWORD:
+            kind = "keyword"
+        else:
+            kind = "positional" if name in passed_by_position else "keyword"
+        params[name] = {
+            "default": None if param.default is inspect._empty else param.default,
+            "annotation": (
+                None if param.annotation is inspect._empty else param.annotation
+            ),
+            "kind": kind,
+            "value": value,
+        }
+    return params
 
 
 def clean_str(s):
