@@ -92,6 +92,11 @@ class Annalist(metaclass=Singleton):
     file_formatter : str
         File formatting string to be parsed by `logging.Formatter`.
         See `logging.Formatter documentation`_ for more info.
+
+    .. _`logging.FileHandler documentation`:
+        https://docs.python.org/3/library/logging.handlers.html#filehandler
+    .. _`logging.Formatter documentation`:
+        https://docs.python.org/3/library/logging.html#formatter-objects
     """
 
     _configured = False

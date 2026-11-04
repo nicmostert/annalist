@@ -46,9 +46,8 @@ def log_records(capsys, function_name: str) -> list[list[str]]:
 
 
 def make_craig() -> Craig:
-    return Craig(
-        surname="Beaven", height=5.5, shoesize=9, injured=True, bearded=False
-    )
+    """Build a Craig with fixed values."""
+    return Craig(surname="Beaven", height=5.5, shoesize=9, injured=True, bearded=False)
 
 
 class SubCraig(Craig):
@@ -69,7 +68,10 @@ class Registry:
 
 
 class TestClassmethodOnTheClass:
+    """Classmethod on the class."""
+
     def test_it_works_and_returns_the_right_thing(self):
+        """It works and returns the right thing."""
         configure("test_classmethod_on_class_works")
 
         army = Craig.army_of_craigs(["Fisher", "Stewart-Baxter"])
@@ -78,6 +80,7 @@ class TestClassmethodOnTheClass:
         assert all(isinstance(c, Craig) for c in army)
 
     def test_it_is_logged(self, capsys):
+        """It is logged."""
         configure("test_classmethod_on_class_logged")
 
         Craig.army_of_craigs(["Fisher"])
@@ -85,6 +88,7 @@ class TestClassmethodOnTheClass:
         assert len(log_records(capsys, "army_of_craigs")) == 1
 
     def test_the_log_message_names_the_class_not_nonetype(self, capsys):
+        """The log message names the class not nonetype."""
         configure("test_classmethod_on_class_message")
 
         Craig.army_of_craigs(["Fisher"])
@@ -95,6 +99,7 @@ class TestClassmethodOnTheClass:
         assert "NoneType" not in message
 
     def test_a_subclass_gets_subclass_instances(self):
+        """A subclass gets subclass instances."""
         configure("test_classmethod_on_subclass")
 
         army = SubCraig.army_of_craigs(["Fisher"])
@@ -102,6 +107,7 @@ class TestClassmethodOnTheClass:
         assert type(army[0]) is SubCraig
 
     def test_a_keyword_argument_called_owner_is_not_swallowed(self):
+        """A keyword argument called owner is not swallowed."""
         configure("test_classmethod_owner_kwarg")
 
         registry = Registry.build(owner="somebody")
@@ -110,12 +116,16 @@ class TestClassmethodOnTheClass:
 
 
 class TestStaticmethodOnTheClass:
+    """Staticmethod on the class."""
+
     def test_it_works_and_returns_the_right_thing(self):
+        """It works and returns the right thing."""
         configure("test_staticmethod_on_class_works")
 
         assert Craig.what_is_a_craig() == "They sit next to me."
 
     def test_it_is_logged(self, capsys):
+        """It is logged."""
         configure("test_staticmethod_on_class_logged")
 
         Craig.what_is_a_craig()
@@ -123,6 +133,7 @@ class TestStaticmethodOnTheClass:
         assert len(log_records(capsys, "what_is_a_craig")) == 1
 
     def test_the_log_message_names_the_class_not_nonetype(self, capsys):
+        """The log message names the class not nonetype."""
         configure("test_staticmethod_on_class_message")
 
         Craig.what_is_a_craig()
@@ -132,7 +143,10 @@ class TestStaticmethodOnTheClass:
 
 
 class TestAccessThroughAnInstanceIsUnchanged:
+    """Access through an instance is unchanged."""
+
     def test_classmethod_through_an_instance_still_works(self, capsys):
+        """Classmethod through an instance still works."""
         configure("test_classmethod_via_instance")
         craig = make_craig()
         capsys.readouterr()  # discard the __init__ logging
@@ -143,6 +157,7 @@ class TestAccessThroughAnInstanceIsUnchanged:
         assert len(log_records(capsys, "army_of_craigs")) == 1
 
     def test_classmethod_through_a_subclass_instance_binds_the_subclass(self):
+        """Classmethod through a subclass instance binds the subclass."""
         configure("test_classmethod_via_subclass_instance")
         sub = SubCraig(
             surname="Beaven", height=5.5, shoesize=9, injured=True, bearded=False
@@ -153,6 +168,7 @@ class TestAccessThroughAnInstanceIsUnchanged:
         assert type(army[0]) is SubCraig
 
     def test_staticmethod_through_an_instance_still_works(self, capsys):
+        """Staticmethod through an instance still works."""
         configure("test_staticmethod_via_instance")
         craig = make_craig()
         capsys.readouterr()
@@ -161,6 +177,7 @@ class TestAccessThroughAnInstanceIsUnchanged:
         assert len(log_records(capsys, "what_is_a_craig")) == 1
 
     def test_instance_and_class_access_are_logged_the_same_way(self, capsys):
+        """Instance and class access are logged the same way."""
         configure("test_class_and_instance_log_alike")
         craig = make_craig()
         capsys.readouterr()
@@ -175,7 +192,10 @@ class TestAccessThroughAnInstanceIsUnchanged:
 
 
 class TestOrdinaryMethodsAreUnchanged:
+    """Ordinary methods are unchanged."""
+
     def test_an_instance_method_is_logged_with_its_instance(self, capsys):
+        """An instance method is logged with its instance."""
         configure("test_instance_method_unchanged")
         craig = make_craig()
         capsys.readouterr()
@@ -187,6 +207,7 @@ class TestOrdinaryMethodsAreUnchanged:
         assert "instance of Craig" in record[3]
 
     def test_a_method_called_through_the_class_still_runs(self):
+        """A method called through the class still runs."""
         configure("test_unbound_method_call")
         craig = make_craig()
 
@@ -196,6 +217,7 @@ class TestOrdinaryMethodsAreUnchanged:
     def test_a_method_called_through_the_class_is_logged_like_a_bound_call(
         self, capsys
     ):
+        """A method called through the class is logged like a bound call."""
         configure("test_unbound_method_logging")
         craig = make_craig()
         capsys.readouterr()
@@ -218,12 +240,15 @@ class TestDecoratedPropertyReachedThroughTheClass:
     """
 
     def test_it_returns_the_property_not_its_value(self):
+        """It returns the property not its value."""
         assert isinstance(Craig.surname, property)
 
     def test_the_docstring_is_the_propertys(self):
+        """The docstring is the propertys."""
         assert Craig.surname.__doc__ == "The surname property."
 
     def test_reading_and_setting_through_an_instance_still_work(self, capsys):
+        """Reading and setting through an instance still work."""
         configure("test_property_via_instance")
         craig = make_craig()
 

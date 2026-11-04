@@ -9,13 +9,21 @@ annalist.annalist module
 
 .. automodule:: annalist.annalist
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
+
+annalist.decorators module
+--------------------------
+
+.. automodule:: annalist.decorators
+   :members:
+   :show-inheritance:
+   :undoc-members:
 
 Module contents
 ---------------
 
 .. automodule:: annalist
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

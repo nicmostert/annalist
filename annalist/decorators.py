@@ -15,6 +15,17 @@ logger.addHandler(logging.StreamHandler())
 ann = Annalist()
 
 
+def _describe(obj):
+    """Describe an object for a log message without running its own code.
+
+    The instance being logged is the user's object, and its ``__repr__`` or
+    ``__str__`` may depend on state that does not exist yet (a decorated
+    ``__init__`` is logged before the attributes are set) or may simply be
+    broken. ``object.__repr__`` always works.
+    """
+    return object.__repr__(obj)
+
+
 def function_logger(
     _func=None,
     message: str = "",
@@ -29,7 +40,6 @@ def function_logger(
 
     Examples
     --------
-    ________
     When applied where the function is declared, this function serves as a
     decorator::
 
@@ -169,6 +179,8 @@ class Wrapper:
                 # the property itself, not the result of calling it.
                 return self.func
             return self.__get_property__(instance)
+        if instance is None and owner is None:
+            raise TypeError("__get__(None, None) is invalid")
         if owner is None:
             owner = type(instance)
         return self._bind(instance, owner)
@@ -255,7 +267,7 @@ class ClassLogger(Wrapper):
     some linters have a difficult time understanding this syntax.
     For example, ``mypy`` does not like custom decorator on
     __init__, even though this is perfectly legal code. In this case,
-    add the linter comment ``# type: ignore`` inline:
+    add the linter comment ``# type: ignore`` inline::
 
         class MyClass:
             @ClassLogger  # type: ignore
@@ -277,11 +289,11 @@ class ClassLogger(Wrapper):
             def prop1(self, value):
                 self._prop1 = value
 
-    Do not decorate the ``@property`` method itself. This creates an infinite
-    loop, as the logger calls the property, which calls the property ...
+    Decorating the ``@property`` method itself works, but has no effect:
+    reading a property is not logged. Only the setter is.
 
     Normal methods, static methods, and class methods can be decorated as
-    normal.
+    normal::
 
             @ClassLogger
             def normal_method(self, arg):
@@ -297,8 +309,8 @@ class ClassLogger(Wrapper):
             def class_method(cls, arg):
                 ...
 
-    I haven't tried all the magic methods. ``__init__`` works fine.
-    ``__repr__`` does not, it does the infinite loop thing.
+    I haven't tried all the magic methods. ``__init__``, ``__repr__`` and
+    ``__str__`` work fine.
 
     """
 
@@ -335,7 +347,7 @@ class ClassLogger(Wrapper):
         """
         if instance is not None:
             return instance, instance.__class__, args
-        if not isinstance(self.func, (classmethod, staticmethod)) and args:
+        if not isinstance(self.func, classmethod | staticmethod) and args:
             return args[0], args[0].__class__, args[1:]
         return None, owner, args
 
@@ -347,15 +359,16 @@ class ClassLogger(Wrapper):
         logger.debug("METHOD seen, let's get it.")
         logger.debug(
             f"You decorated a method called {self.func.__name__} "
-            f"with instance {instance}, "
+            f"with instance {_describe(instance)}, "
             f"args {args}, and kwargs {kwargs}"
         )
         ret_val = super().__call_method__(instance, owner, *args, **kwargs)
-        log_instance, log_class, log_args = self._logging_subject(
-            instance, owner, args
-        )
+        log_instance, log_class, log_args = self._logging_subject(instance, owner, args)
         logger.info(f"METHOD {self.func} called with args {log_args} and {kwargs}")
-        logger.info(f"METHOD {self.func} is on {log_instance or log_class}")
+        logger.info(
+            f"METHOD {self.func} is on "
+            f"{_describe(log_instance) if log_instance is not None else log_class}"
+        )
         logger.info(f"METHOD {self.func} RETURNS {ret_val}")
         ret_val_str = trunc_value_string(ret_val)
         message = (
@@ -378,6 +391,7 @@ class ClassLogger(Wrapper):
             log_class if log_instance is None else log_instance,
             log_args,
             kwargs,
+            from_class=log_instance is None,
         )
 
         ann.log_call(
@@ -403,7 +417,7 @@ class ClassLogger(Wrapper):
         logger.debug("PROPERTY seen, let's get it.")
         logger.debug(
             f"You decorated a property called {self.func.fget} "
-            f"on instance {instance}, "
+            f"on instance {_describe(instance)}, "
         )
         value = self.func.fget(instance)
         logger.debug(f"PROPERTY IS {value}")
@@ -417,7 +431,7 @@ class ClassLogger(Wrapper):
         logger.debug("PROPERTY seen, let's SET it.")
         logger.debug(
             f"You decorated a property called {self.func.fset} "
-            f"on instance {instance}, "
+            f"on instance {_describe(instance)}, "
         )
         logger.debug("Inspecting Instance:")
         fill_data = self._inspect_instance(
@@ -450,9 +464,30 @@ class ClassLogger(Wrapper):
         return self.func.fset(instance, value)
 
     @staticmethod
-    def _inspect_instance(func, instance, args, kwargs, setter_value=None):
+    def _inspect_instance(
+        func, instance, args, kwargs, setter_value=None, from_class=False
+    ):
+        """Collect the values of the tracked attributes for one logged call.
+
+        ``instance`` is normally an instance, and attributes are read from
+        it. With ``from_class`` it is the class instead (a classmethod or
+        staticmethod called with no instance), and only plain class variables
+        are read. A property, method or other descriptor found on a class is
+        not a value, it is the descriptor, so it is skipped and its field is
+        left as ``None``.
+        """
         if setter_value is None:
             setter_value = {}
+
+        def has_value(attr):
+            if not from_class:
+                return hasattr(instance, attr)
+            try:
+                raw = inspect.getattr_static(instance, attr)
+            except AttributeError:
+                return False
+            return not hasattr(raw, "__get__")
+
         logger.debug(f"RAW ARGS: {args}")
         logger.debug(f"RAW KWARGS: {kwargs}")
         # arg_values = list(args) + list(kwargs.values())
@@ -494,14 +529,14 @@ class ClassLogger(Wrapper):
                 logger.info(f"Found {attr} in method args.")
                 if attr in arg_values.keys():
                     fill_data[attr] = arg_values[attr]
-                elif hasattr(instance, attr):
+                elif has_value(attr):
                     logger.info(
                         "But no arg supplied." f"Found {attr} in class attributes."
                     )
                     fill_data[attr] = getattr(instance, attr)
                 else:
                     logger.info("Arg not supplied, and not in class attributes")
-            elif hasattr(instance, attr):
+            elif has_value(attr):
                 logger.info(f"Found {attr} in class attributes.")
                 fill_data[attr] = getattr(instance, attr)
 

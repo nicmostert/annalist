@@ -16,11 +16,14 @@ classifiers=[
     "Intended Audience :: Developers",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Natural Language :: English",
-    "Programming Language :: Python :: 3.11"
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 license = {text = "GNU General Public License v3"}
 readme = "README.rst"
-keywords = ["logging, auditing, audit trail, hydrology, automation, hilltop, hydrobot, HorizonsRC"]
+keywords = ["logging", "auditing", "audit trail", "hydrology", "automation", "hilltop", "hydrobot", "HorizonsRC"]
 
 [tool.poetry]
 name = "data-annalist"
@@ -57,7 +60,7 @@ packages = ["annalist"]
 addopts = "--cov --cov-fail-under 100 --strict-markers"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "remote: depends on remote server calls (deselect with '-m \"not remove\"')",
+    "remote: depends on remote server calls (deselect with '-m \"not remote\"')",
 ]
 
 [tool.coverage.run]

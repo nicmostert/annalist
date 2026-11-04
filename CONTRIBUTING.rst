@@ -88,9 +88,9 @@ Windows (cmd)::
 
     $ ./path/to/venv/location/Scripts/activate.bat
 
-Once within the venv, install the package in "editable" (or "develop") mode. The "[all]" tag also includes additional dependencies for development and testing.::
+Once within the venv, install the package in "editable" (or "develop") mode. The extras also install the dependencies for development (``dev``), documentation (``docs``) and testing (``test``).::
 
-    $ python -m pip install -e .[all]
+    $ python -m pip install -e ".[dev,docs,test]"
 
 4. Create a branch for local development
 
@@ -114,7 +114,7 @@ Your branch will not be allowed to merge if all tests do not pass. [*NOTE: This 
     $ git add .
     $ git commit -m "Your detailed description of your changes."
 
-This project makes use of various pre-commit hooks. Among other things, this code-base conforms to `black` formatting. If your test fails, follow the instructions on how to fix any problems, and then repeat the commit command. In some cases, the pre-commit hooks will automatically fix all problems. In such cases, changes need to be staged with `git add .` again, before committing again. Since the failed commit didn't go through, feel free to use the same commit message as before.
+This project makes use of various pre-commit hooks. Among other things, this code-base conforms to `black` and `ruff` formatting, and is checked with `ruff` and `bandit`. If your test fails, follow the instructions on how to fix any problems, and then repeat the commit command. In some cases, the pre-commit hooks will automatically fix all problems. In such cases, changes need to be staged with `git add .` again, before committing again. Since the failed commit didn't go through, feel free to use the same commit message as before.
 
 To run all the pre-commit hooks without making a commit (e.g. to check if the auto-fixes solved all the problems), you can run::
 
@@ -148,9 +148,9 @@ A reminder for the maintainers on how to deploy.
     $ bump-my-version bump -v --dry-run patch  # Optional, just to test if it runs without errors
     $ bump-my-version bump patch  # For real this time. Possible values: major, minor, patch
 
-3. Install the local development version of the package (make sure you're in the package root directory where setup.py is). You should see the package install with the correct version number.::
+3. Install the local development version of the package (make sure you're in the package root directory, where pyproject.toml is). You should see the package install with the correct version number.::
 
-    $ pip install -e .[all]
+    $ pip install -e ".[dev,docs,test]"
 
 4. Run the tests to see that they still work with this local install::
 

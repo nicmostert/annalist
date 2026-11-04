@@ -28,23 +28,32 @@ from tests.example_class import Craig
 
 
 def signature_of(func):
+    """Return the signature of a function."""
     return inspect.signature(func)
 
 
 def one(params: dict, name: str) -> dict:
+    """Return one entry of a params dictionary."""
     return params[name]
 
 
 class TestDescribeParams:
+    """Describe params."""
+
     def test_a_positional_argument(self):
+        """A positional argument."""
+
         def f(a, b=2): ...
 
         params = describe_params(signature_of(f), (1,), {})
 
-        assert params == {"a": {"default": None, "annotation": None,
-                                "kind": "positional", "value": 1}}
+        assert params == {
+            "a": {"default": None, "annotation": None, "kind": "positional", "value": 1}
+        }
 
     def test_a_keyword_argument(self):
+        """A keyword argument."""
+
         def f(a, b=2): ...
 
         params = describe_params(signature_of(f), (1,), {"b": 5})
@@ -54,12 +63,21 @@ class TestDescribeParams:
         assert one(params, "b")["default"] == 2
 
     def test_a_positional_or_keyword_argument_is_judged_by_how_it_was_passed(self):
+        """A positional or keyword argument is judged by how it was passed."""
+
         def f(a): ...
 
-        assert one(describe_params(signature_of(f), (1,), {}), "a")["kind"] == "positional"
-        assert one(describe_params(signature_of(f), (), {"a": 1}), "a")["kind"] == "keyword"
+        assert (
+            one(describe_params(signature_of(f), (1,), {}), "a")["kind"] == "positional"
+        )
+        assert (
+            one(describe_params(signature_of(f), (), {"a": 1}), "a")["kind"]
+            == "keyword"
+        )
 
     def test_arguments_that_were_not_supplied_are_not_listed(self):
+        """Arguments that were not supplied are not listed."""
+
         def f(a, b=2, c=3): ...
 
         params = describe_params(signature_of(f), (1,), {})
@@ -67,6 +85,8 @@ class TestDescribeParams:
         assert list(params) == ["a"]
 
     def test_annotations_are_recorded(self):
+        """Annotations are recorded."""
+
         def f(a: float): ...
 
         params = describe_params(signature_of(f), (1.5,), {})
@@ -74,6 +94,8 @@ class TestDescribeParams:
         assert one(params, "a")["annotation"] is float
 
     def test_the_order_follows_the_signature_not_the_call(self):
+        """The order follows the signature not the call."""
+
         def f(a, b, c): ...
 
         params = describe_params(signature_of(f), (), {"c": 3, "a": 1, "b": 2})
@@ -81,16 +103,24 @@ class TestDescribeParams:
         assert list(params) == ["a", "b", "c"]
 
     def test_star_args_and_star_kwargs(self):
+        """Star args and star kwargs."""
+
         def f(a, *rest, **options): ...
 
         params = describe_params(signature_of(f), (1, 2, 3), {"x": 9})
 
-        assert one(params, "rest") == {"default": None, "annotation": None,
-                                       "kind": "positional", "value": (2, 3)}
+        assert one(params, "rest") == {
+            "default": None,
+            "annotation": None,
+            "kind": "positional",
+            "value": (2, 3),
+        }
         assert one(params, "options")["kind"] == "keyword"
         assert one(params, "options")["value"] == {"x": 9}
 
     def test_keyword_only_arguments_are_keyword(self):
+        """Keyword only arguments are keyword."""
+
         def f(a, *, flag=False): ...
 
         params = describe_params(signature_of(f), (1,), {"flag": True})
@@ -99,11 +129,15 @@ class TestDescribeParams:
 
     def test_arguments_that_do_not_fit_give_an_empty_result_not_an_error(self):
         # Logging must never break the call it describes.
+        """Arguments that do not fit give an empty result not an error."""
+
         def f(a): ...
 
         assert describe_params(signature_of(f), (1, 2, 3), {}) == {}
 
     def test_no_arguments(self):
+        """No arguments."""
+
         def f(): ...
 
         assert describe_params(signature_of(f), (), None) == {}
@@ -134,7 +168,10 @@ def configure():
 
 
 class TestLoggedParamsForMethods:
+    """Logged params for methods."""
+
     def test_an_ordinary_method_logs_its_real_arguments(self, capsys):
+        """An ordinary method logs its real arguments."""
         configure()
         craig = Craig(surname="B", height=5.5, shoesize=9, injured=True, bearded=False)
         capsys.readouterr()
@@ -142,10 +179,12 @@ class TestLoggedParamsForMethods:
         craig.grow_craig(2.0)
 
         text = logged_params(capsys, "grow_craig")
-        assert "'feet'" in text and "'value': 2.0" in text
+        assert "'feet'" in text
+        assert "'value': 2.0" in text
         assert "'self'" not in text
 
     def test_a_keyword_argument_is_logged_as_keyword(self, capsys):
+        """A keyword argument is logged as keyword."""
         configure()
         craig = Craig(surname="B", height=5.5, shoesize=9, injured=True, bearded=False)
         capsys.readouterr()
@@ -154,31 +193,35 @@ class TestLoggedParamsForMethods:
 
         assert "'kind': 'keyword'; 'value': 2.0" in logged_params(capsys, "grow_craig")
 
-    def test_a_classmethod_does_not_log_cls_and_shows_its_argument(
-        self, capsys
-    ):
+    def test_a_classmethod_does_not_log_cls_and_shows_its_argument(self, capsys):
+        """A classmethod does not log cls and shows its argument."""
         configure()
         Craig.army_of_craigs(["Fisher"])
 
         text = logged_params(capsys, "army_of_craigs")
-        assert "'surnames'" in text and "Fisher" in text
+        assert "'surnames'" in text
+        assert "Fisher" in text
         assert "'cls'" not in text
 
     def test_a_staticmethod_has_nothing_skipped(self, capsys):
+        """A staticmethod has nothing skipped."""
         configure()
         Craig.what_is_a_craig()
 
         assert logged_params(capsys, "what_is_a_craig") == "{}"
 
     def test_the_constructor_logs_its_arguments_without_self(self, capsys):
+        """The constructor logs its arguments without self."""
         configure()
         Craig(surname="B", height=5.5, shoesize=9, injured=True, bearded=False)
 
         text = logged_params(capsys, "__init__")
-        assert "'surname'" in text and "'height'" in text
+        assert "'surname'" in text
+        assert "'height'" in text
         assert "'self'" not in text
 
     def test_a_property_setter_logs_the_value_set(self, capsys):
+        """A property setter logs the value set."""
         configure()
         craig = Craig(surname="B", height=5.5, shoesize=9, injured=True, bearded=False)
         capsys.readouterr()
@@ -186,16 +229,19 @@ class TestLoggedParamsForMethods:
         craig.shoesize = 11
 
         text = logged_params(capsys, "shoesize")
-        assert "'value'" in text and "'value': 11" in text
+        assert "'value'" in text
+        assert "'value': 11" in text
         assert "'self'" not in text
 
 
 class TestFunctionLoggerKeywordCollisions:
+    """Function logger keyword collisions."""
+
     @pytest.mark.parametrize("name", ["message", "level", "func", "ret_val"])
-    def test_a_keyword_named_like_a_log_call_parameter_works(
-        self, capsys, name
-    ):
+    def test_a_keyword_named_like_a_log_call_parameter_works(self, capsys, name):
+        """A keyword named like a log call parameter works."""
         configure()
+
         @function_logger
         def work(**options):
             return options[name]
@@ -203,7 +249,9 @@ class TestFunctionLoggerKeywordCollisions:
         assert work(**{name: "hello"}) == "hello"
 
     def test_the_collision_is_logged_correctly(self, capsys):
+        """The collision is logged correctly."""
         configure()
+
         @function_logger
         def work(message="a", level=1):
             return f"{message}{level}"
@@ -211,5 +259,7 @@ class TestFunctionLoggerKeywordCollisions:
         assert work(message="hi", level=2) == "hi2"
 
         text = logged_params(capsys, "work")
-        assert "'message'" in text and "'value': 'hi'" in text
-        assert "'level'" in text and "'value': 2" in text
+        assert "'message'" in text
+        assert "'value': 'hi'" in text
+        assert "'level'" in text
+        assert "'value': 2" in text

@@ -1,4 +1,4 @@
-.PHONY: clean clean-build clean-pyc clean-test coverage dist docs help install lint lint/flake8 lint/black
+.PHONY: clean clean-build clean-pyc clean-test coverage dist docs help install lint lint/ruff lint/format
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -42,26 +42,24 @@ clean-pyc: ## remove Python file artifacts
 	find . -name '__pycache__' -exec rm -fr {} +
 
 clean-test: ## remove test and coverage artifacts
-	rm -fr .tox/
 	rm -f .coverage
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
 clean-lint:
 	rm -fr .mypy_cache/
+	rm -fr .ruff_cache/
 
-lint/flake8: ## check style with flake8
-	flake8 annalist tests
-lint/black: ## check style with black
-	black -l 80 --check annalist tests
+lint/ruff: ## check for problems with ruff
+	ruff check annalist tests
 
-lint: lint/flake8 lint/black## check style
+lint/format: ## check formatting with ruff
+	ruff format --check annalist tests
+
+lint: lint/ruff lint/format ## check style
 
 test: ## run tests quickly with the default Python
 	pytest
-
-test-all: ## run tests on every Python version with tox
-	tox
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source annalist -m pytest
@@ -88,7 +86,7 @@ dist: clean ## builds source and wheel package
 	ls -l dist
 
 install: clean ## install the package to the active Python's site-packages
-	python -m pip install -e .[all]
+	python -m pip install -e ".[dev,docs,test]"
 
 pre-commit: ## run pre-commit locally as it would run on pre-commit.ci
 	pre-commit run --all-files

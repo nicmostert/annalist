@@ -47,7 +47,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "Annalist"
-copyright = "2023, Nic Mostert"
+copyright = "2023-2026, Nic Mostert"
 author = "Nic Mostert"
 
 # The version info for the project you're documenting, acts as replacement
@@ -91,10 +91,10 @@ html_theme = "furo"
 #
 # html_theme_options = {}
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
+# There are no custom static files. (Add a docs/_static directory and list it
+# here if that changes. Pointing at a directory that does not exist is a
+# Sphinx warning.)
+html_static_path: list[str] = []
 
 
 # -- Options for HTMLHelp output ---------------------------------------
@@ -153,7 +153,7 @@ texinfo_documents = [
         "Annalist Documentation",
         author,
         "annalist",
-        "One line description of project.",
+        "Audit trail generator for data processing scripts.",
         "Miscellaneous",
     ),
 ]

@@ -18,6 +18,8 @@ To install Annalist, run this command in your terminal:
 
 This is the preferred method to install Annalist, as it will always install the most recent stable release.
 
+Annalist needs Python 3.11 or newer.
+
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
 you through the process.
 
@@ -34,20 +36,20 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/nicmostert/annalist
+    $ git clone https://github.com/nicmostert/annalist.git
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/nicmostert/annalist/tarball/master
+    $ curl -OJL https://github.com/nicmostert/annalist/tarball/main
 
 Once you have a copy of the source, you can install it with:
 
 .. code-block:: console
 
-    $ python setup.py install
+    $ pip install .
 
 
 .. _Github repo: https://github.com/nicmostert/annalist
-.. _tarball: https://github.com/nicmostert/annalist/tarball/master
+.. _tarball: https://github.com/nicmostert/annalist/tarball/main
